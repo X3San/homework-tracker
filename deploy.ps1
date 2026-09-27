@@ -155,9 +155,71 @@ if ($info) {
 }
 if (-not $htmlUrl) { $htmlUrl = "https://$Owner.github.io/$RepoName/" }
 
+Write-Step "Checking JavaScript syntax of index.html"
+$nodeExe = $null
+$nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+if ($nodeCmd) {
+  $nodeExe = $nodeCmd.Source
+} else {
+  $nodeCandidates = @(
+    (Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe')
+  )
+  Get-ChildItem -Path (Join-Path $env:USERPROFILE '.cache\codex-runtimes') -Filter 'node.exe' -Recurse -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -notmatch 'node_modules' } |
+    Select-Object -First 1 |
+    ForEach-Object { $nodeCandidates += $_.FullName }
+  foreach ($c in $nodeCandidates) { if ($c -and (Test-Path -LiteralPath $c)) { $nodeExe = $c; break } }
+}
+
+if ($nodeExe) {
+  $html = Get-Content -LiteralPath '.\index.html' -Raw
+  $match = [regex]::Match($html, '(?s)<script>(.*?)</script>')
+  if ($match.Success) {
+    $tmpJs = Join-Path $env:TEMP 'hw-tracker-check.js'
+    Set-Content -LiteralPath $tmpJs -Value $match.Groups[1].Value -Encoding UTF8
+    & $nodeExe --check $tmpJs 2>&1 | Out-String | ForEach-Object { if ($_.Trim()) { Write-Note $_.Trim() } }
+    if ($LASTEXITCODE -eq 0) {
+      Write-Note "JavaScript syntax OK"
+    } else {
+      Write-Note "JavaScript syntax check FAILED - the page may be broken"
+    }
+    Remove-Item -LiteralPath $tmpJs -ErrorAction SilentlyContinue
+  }
+} else {
+  Write-Note "node.exe not found, skipping syntax check"
+}
+
+Write-Step "Verifying the published site"
+$buildStatus = $null
+$deadline = (Get-Date).AddSeconds(120)
+while ((Get-Date) -lt $deadline) {
+  $buildStatus = $null
+  $raw = & gh api "repos/$full/pages/builds/latest" 2>$null
+  if ($raw) {
+    try { $buildStatus = ($raw | ConvertFrom-Json).status } catch { $buildStatus = $null }
+  }
+  if ($buildStatus -eq 'built' -or $buildStatus -eq 'errored') { break }
+  Start-Sleep -Seconds 10
+}
+Write-Note "pages build status: $buildStatus"
+
+$httpCode = $null
+try {
+  $resp = Invoke-WebRequest -Uri $htmlUrl -UseBasicParsing -TimeoutSec 25 -MaximumRedirection 5
+  $httpCode = $resp.StatusCode
+  $hasManifest = ($resp.Content -like '*manifest.webmanifest*')
+  Write-Note "HTTP $httpCode, $($resp.Content.Length) bytes, manifest linked: $hasManifest"
+} catch {
+  Write-Note "page not reachable yet: $($_.Exception.Message)"
+}
+
 Write-Host ''
-Write-Host 'Done.' -ForegroundColor Green
+if ($httpCode -eq 200) {
+  Write-Host 'Done - the site is live.' -ForegroundColor Green
+} else {
+  Write-Host 'Done - files pushed, the site is still building.' -ForegroundColor Yellow
+  Write-Note "Wait a minute, then refresh. Check the build in the repo under Actions / Settings > Pages."
+}
 Write-Host "Repository : https://github.com/$full"
 Write-Host "Web page   : $htmlUrl"
-Write-Note "The first build takes about a minute. A 404 right after deploying is normal."
 Write-Note "On your phone: open the link, then use Add to Home Screen."
