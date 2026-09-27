@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="作业本">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4b7bff"/>
+      <stop offset="1" stop-color="#7c5cf6"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M168 148a32 32 0 0 1 32-32h152v280H200a32 32 0 0 0-32 32z" fill="rgba(255,255,255,0.18)"/>
+    <path d="M216 200h96"/>
+    <path d="M216 258h96"/>
+    <path d="M216 316h58"/>
+  </g>
+</svg>

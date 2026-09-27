@@ -1,0 +1,18 @@
+{
+  "name": "作业本 · 作业与提交情况管理",
+  "short_name": "作业本",
+  "description": "大学生作业与提交情况管理：科目、作业、提交日期、完成情况、作业本去向。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6fb",
+  "theme_color": "#3b6ef6",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
