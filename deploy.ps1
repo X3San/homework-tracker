@@ -172,16 +172,22 @@ if ($nodeCmd) {
 }
 
 if ($nodeExe) {
-  $html = Get-Content -LiteralPath '.\index.html' -Raw
+  # Read as UTF-8: Windows PowerShell 5.1 defaults to the ANSI code page, which
+  # would garble the Chinese text inside the script block.
+  $html = Get-Content -LiteralPath '.\index.html' -Raw -Encoding UTF8
   $match = [regex]::Match($html, '(?s)<script>(.*?)</script>')
   if ($match.Success) {
     $tmpJs = Join-Path $env:TEMP 'hw-tracker-check.js'
-    Set-Content -LiteralPath $tmpJs -Value $match.Groups[1].Value -Encoding UTF8
-    & $nodeExe --check $tmpJs 2>&1 | Out-String | ForEach-Object { if ($_.Trim()) { Write-Note $_.Trim() } }
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($tmpJs, $match.Groups[1].Value, $utf8NoBom)
+    # Run through cmd so node's stderr comes back as plain text instead of a
+    # PowerShell NativeCommandError block.
+    $nodeOutput = & cmd /c "`"$nodeExe`" --check `"$tmpJs`" 2>&1"
     if ($LASTEXITCODE -eq 0) {
       Write-Note "JavaScript syntax OK"
     } else {
-      Write-Note "JavaScript syntax check FAILED - the page may be broken"
+      Write-Note "JavaScript syntax check FAILED:"
+      $nodeOutput | Select-Object -First 12 | ForEach-Object { Write-Note $_ }
     }
     Remove-Item -LiteralPath $tmpJs -ErrorAction SilentlyContinue
   }
